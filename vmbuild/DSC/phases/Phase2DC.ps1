@@ -54,7 +54,7 @@
     [System.Collections.ArrayList]$waitOnDomainJoin = @($ThisVM.thisParams.ServersToWaitOn)
 
     $domainNameSplit = ($deployConfig.vmOptions.domainName).Split(".")
-    $DNName = "DC=$($domainNameSplit[0]),DC=$($domainNameSplit[1])"
+    $DNName = ($domainNameSplit | ForEach-Object { "DC=$($_.Trim())" }) -join ','
 
     $OtherDC = $false
 

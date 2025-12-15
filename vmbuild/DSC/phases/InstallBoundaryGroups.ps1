@@ -9,7 +9,7 @@ $deployConfig = Get-Content $ConfigFilePath | ConvertFrom-Json
 
 # Get reguired values from config
 $DomainFullName = $deployConfig.vmOptions.domainName
-$DomainName = $DomainFullName.Split(".")[0]
+$DNName = ($DomainFullName.Split(".") | ForEach-Object { "DC=$($_.Trim())" }) -join ','
 $NetbiosDomainName = $deployConfig.vmOptions.domainNetBiosName
 
 $ThisMachineName = $deployConfig.parameters.ThisMachineName
@@ -162,14 +162,13 @@ foreach ($bg in $bgs) {
 
 # Setup System Discovery
 Write-DscStatus "Enabling AD system discovery"
-$lastdomainname = $DomainFullName.Split(".")[-1]
 do {
     $adiscovery = (Get-CMDiscoveryMethod | Where-Object { $_.ItemName -eq "SMS_AD_SYSTEM_DISCOVERY_AGENT|SMS Site Server" }).Props | Where-Object { $_.PropertyName -eq "Settings" }
 
     if ($adiscovery.Value1.ToLower() -ne "active") {
         Write-DscStatus "AD System Discovery state is: $($adiscovery.Value1)" -RetrySeconds 30
         Start-Sleep -Seconds 30
-        Set-CMDiscoveryMethod -ActiveDirectorySystemDiscovery -SiteCode $SiteCode -Enabled $true -AddActiveDirectoryContainer "LDAP://DC=$DomainName,DC=$lastdomainname" -Recursive
+        Set-CMDiscoveryMethod -ActiveDirectorySystemDiscovery -SiteCode $SiteCode -Enabled $true -AddActiveDirectoryContainer "LDAP://$DNName" -Recursive
     }
     else {
         Write-DscStatus "AD System Discovery state is: $($adiscovery.Value1)"
@@ -185,7 +184,7 @@ do {
 
         Write-DscStatus "AD Group Discovery state is: $($adiscovery.Value1)" -RetrySeconds 30
         Start-Sleep -Seconds 30
-        $sgscope = New-CMADGroupDiscoveryScope -name Allscope -SiteCode $SiteCode -LdapLocation "LDAP://DC=$DomainName,DC=$lastdomainname" -RecursiveSearch $true -Verbose
+        $sgscope = New-CMADGroupDiscoveryScope -name Allscope -SiteCode $SiteCode -LdapLocation "LDAP://$DNName" -RecursiveSearch $true -Verbose
         Set-CMDiscoveryMethod -ActiveDirectoryGroupDiscovery -AddGroupDiscoveryScope $sgscope -Enabled $true -Verbose
     }
     else {
